@@ -1,0 +1,29 @@
+version: "3"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=mysql+pymysql://fastapi_user:fastapi_password@db/fastapi
+
+  db:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MYSQL_DATABASE: fastapi
+      MYSQL_USER: fastapi_user
+      MYSQL_PASSWORD: fastapi_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:

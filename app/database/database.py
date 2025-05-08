@@ -1,9 +1,10 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 
-DATABASE_URL = "mysql+pymysql://root:123600@localhost:3306/fastapi"
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:123600@localhost:3306/fastapi")
 
 engine = create_engine(DATABASE_URL)
 
