@@ -1,0 +1,163 @@
+{% extends "layout.html" %} {% block content %}
+<h2>부서 목록</h2>
+
+<div class="controls">
+  <a href="/web/departments/create" class="btn">부서 추가</a>
+</div>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>부서명</th>
+      <th>설명</th>
+      <th>위치</th>
+      <th>소속 직원</th>
+      <th>관리</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for department in departments %}
+    <tr>
+      <td>{{ department.id }}</td>
+      <td>{{ department.name }}</td>
+      <td>{{ department.description or '-' }}</td>
+      <td>{{ department.location or '-' }}</td>
+      <td>{{ department.employees|length }}명</td>
+      <td>
+        <a href="/web/departments/{{ department.id }}/edit">수정</a> |
+        <a href="#" class="delete-link" data-id="{{ department.id }}">삭제</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="6" class="text-center">등록된 부서가 없습니다.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="department-stats">
+  <h3>부서별 통계</h3>
+  <div id="department-chart">
+    <!-- 차트가 여기에 표시됩니다 -->
+    <p>차트 로딩 중...</p>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // 삭제 처리
+  document.querySelectorAll(".delete-link").forEach((link) => {
+    link.addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (
+        confirm(
+          "정말 삭제하시겠습니까? 소속 직원들의 부서 정보도 함께 삭제됩니다."
+        )
+      ) {
+        const id = e.target.dataset.id;
+        try {
+          const token = localStorage.getItem("token");
+          if (!token) {
+            alert("로그인이 필요합니다.");
+            window.location.href = "/web/login";
+            return;
+          }
+
+          const response = await fetch(`/departments/${id}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            alert("삭제되었습니다.");
+            window.location.reload();
+          } else {
+            const data = await response.json();
+            alert(`오류: ${data.detail || "알 수 없는 오류가 발생했습니다."}`);
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("오류가 발생했습니다.");
+        }
+      }
+    });
+  });
+
+  // 부서별 통계 차트
+  async function loadDepartmentStats() {
+    try {
+      const response = await fetch("/employees/stats/departments");
+      const stats = await response.json();
+
+      if (!stats || stats.length === 0) {
+        document.getElementById("department-chart").innerHTML =
+          "<p>통계 데이터가 없습니다.</p>";
+        return;
+      }
+
+      const ctx = document.createElement("canvas");
+      document.getElementById("department-chart").innerHTML = "";
+      document.getElementById("department-chart").appendChild(ctx);
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: stats.map((item) => item.department_name),
+          datasets: [
+            {
+              label: "직원 수",
+              data: stats.map((item) => item.employee_count),
+              backgroundColor: "rgba(54, 162, 235, 0.7)",
+              borderColor: "rgba(54, 162, 235, 1)",
+              borderWidth: 1,
+            },
+            {
+              label: "평균 급여 (원 단위)",
+              data: stats.map((item) => item.average_salary),
+              backgroundColor: "rgba(255, 99, 132, 0.7)",
+              borderColor: "rgba(255, 99, 132, 1)",
+              borderWidth: 1,
+              type: "line",
+              yAxisID: "y-axis-2",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: "직원 수",
+              },
+            },
+            "y-axis-2": {
+              position: "right",
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: "평균 급여 (원)",
+              },
+              grid: {
+                drawOnChartArea: false,
+              },
+            },
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error loading department stats:", error);
+      document.getElementById("department-chart").innerHTML =
+        "<p>통계 데이터를 불러오는 중 오류가 발생했습니다.</p>";
+    }
+  }
+
+  // 페이지 로드 시 통계 차트 로드
+  document.addEventListener("DOMContentLoaded", loadDepartmentStats);
+</script>
+{% endblock %}

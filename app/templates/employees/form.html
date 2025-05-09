@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h2>{{ employee and '직원 정보 수정' or '직원 추가' }}</h2>
+    
+    <div id="error-message" class="error-message" style="display: none; color: red; margin-bottom: 1rem;"></div>
+    
+    <form id="employee-form">
+        <div class="form-group">
+            <label for="name">이름 *</label>
+            <input type="text" id="name" name="name" class="form-control" required value="{{ employee and employee.name or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="department_id">부서 *</label>
+            <select id="department_id" name="department_id" class="form-control" required>
+                <option value="">부서 선택</option>
+                {% for department in departments %}
+                <option value="{{ department.id }}" {% if employee and employee.department_id == department.id %}selected{% endif %}>
+                    {{ department.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="position">직책 *</label>
+            <input type="text" id="position" name="position" class="form-control" required value="{{ employee and employee.position or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="hire_date">입사일 *</label>
+            <input type="date" id="hire_date" name="hire_date" class="form-control" required value="{{ employee and employee.hire_date|string or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="salary">급여 (원) *</label>
+            <input type="number" id="salary" name="salary" class="form-control" min="0" step="100000" required value="{{ employee and employee.salary or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="email">이메일 *</label>
+            <input type="email" id="email" name="email" class="form-control" required value="{{ employee and employee.email or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">전화번호</label>
+            <input type="tel" id="phone" name="phone" class="form-control" value="{{ employee and employee.phone or '' }}" placeholder="예: 010-1234-5678">
+        </div>
+        
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='/web/employees'">취소</button>
+            <button type="submit" class="btn">{{ employee and '수정' or '추가' }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 직원 정보를 데이터 속성으로 전달
+    // const employeeId = {{ employee.id if employee else 'null' }};
+    const employeeId = employee.id ? employee : null;
+    const isEditMode = Boolean(employeeId);
+    
+    document.getElementById('employee-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const errorMessage = document.getElementById('error-message');
+        
+        // 폼 데이터 수집
+        const formData = {
+            name: document.getElementById('name').value,
+            department_id: parseInt(document.getElementById('department_id').value),
+            position: document.getElementById('position').value,
+            hire_date: document.getElementById('hire_date').value,
+            salary: parseFloat(document.getElementById('salary').value),
+            email: document.getElementById('email').value,
+            phone: document.getElementById('phone').value || null
+        };
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                errorMessage.textContent = '로그인이 필요합니다.';
+                errorMessage.style.display = 'block';
+                setTimeout(() => {
+                    window.location.href = '/web/login';
+                }, 1000);
+                return;
+            }
+            
+            let url = '/employees/';
+            let method = 'POST';
+            
+            if (isEditMode) {
+                url = `/employees/${employeeId}`;
+                method = 'PUT';
+            }
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                alert(isEditMode ? '직원 정보가 수정되었습니다.' : '직원이 추가되었습니다.');
+                window.location.href = '/web/employees';
+            } else {
+                const data = await response.json();
+                errorMessage.textContent = data.detail || '오류가 발생했습니다.';
+                errorMessage.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            errorMessage.textContent = '오류가 발생했습니다. 다시 시도해주세요.';
+            errorMessage.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

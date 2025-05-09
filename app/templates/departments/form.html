@@ -1,0 +1,130 @@
+{% extends "layout.html" %} {% block content %}
+<div class="form-container">
+  <h2>{{ department and '부서 정보 수정' or '부서 추가' }}</h2>
+
+  <div
+    id="error-message"
+    class="error-message"
+    style="display: none; color: red; margin-bottom: 1rem"
+  ></div>
+
+  <form id="department-form">
+    <div class="form-group">
+      <label for="name">부서명 *</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        class="form-control"
+        required
+        value="{{ department and department.name or '' }}"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="description">설명</label>
+      <textarea
+        id="description"
+        name="description"
+        class="form-control"
+        rows="3"
+      >
+{{ department and department.description or '' }}</textarea
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="location">위치</label>
+      <input
+        type="text"
+        id="location"
+        name="location"
+        class="form-control"
+        value="{{ department and department.location or '' }}"
+      />
+    </div>
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick="window.location.href='/web/departments'"
+      >
+        취소
+      </button>
+      <button type="submit" class="btn">
+        {{ department and '수정' or '추가' }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  // 부서 정보를 데이터 속성으로 전달
+  //   const departmentId = {{ department.id if department else 'null' }};
+  const departmentId = department.id ? department : null;
+  const isEditMode = Boolean(departmentId);
+
+  document
+    .getElementById("department-form")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const errorMessage = document.getElementById("error-message");
+
+      // 폼 데이터 수집
+      const formData = {
+        name: document.getElementById("name").value,
+        description: document.getElementById("description").value || null,
+        location: document.getElementById("location").value || null,
+      };
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          errorMessage.textContent = "로그인이 필요합니다.";
+          errorMessage.style.display = "block";
+          setTimeout(() => {
+            window.location.href = "/web/login";
+          }, 1000);
+          return;
+        }
+
+        let url = "/departments/";
+        let method = "POST";
+
+        if (isEditMode) {
+          url = `/departments/${departmentId}`;
+          method = "PUT";
+        }
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          alert(
+            isEditMode
+              ? "부서 정보가 수정되었습니다."
+              : "부서가 추가되었습니다."
+          );
+          window.location.href = "/web/departments";
+        } else {
+          const data = await response.json();
+          errorMessage.textContent = data.detail || "오류가 발생했습니다.";
+          errorMessage.style.display = "block";
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        errorMessage.textContent = "오류가 발생했습니다. 다시 시도해주세요.";
+        errorMessage.style.display = "block";
+      }
+    });
+</script>
+{% endblock %}
